@@ -1,9 +1,24 @@
-import React, { useEffect, useState, useRef, useReducer } from "react";
+import React, {
+  useEffect,
+  useState,
+  useRef,
+  useReducer,
+  Suspense,
+  useTransition,
+  useDeferredValue,
+} from "react";
 import logo from "./logo.svg";
 import "./App.css";
 import { Card } from "./components/Card";
+import { Loading } from "./components/Loading";
 import axios from "axios";
-import { isArray } from "util";
+// import SearchPerson from "./components/SearchPerson";
+// import { RenderAllPerson } from "./components/RenderAllPerson";
+
+const RenderAllPerson = React.lazy(
+  () => import("./components/RenderAllPerson")
+);
+const SearchPerson = React.lazy(() => import("./components/SearchPerson"));
 
 type Person = {
   name: {
@@ -15,6 +30,7 @@ type Person = {
     age: number;
     date: string;
   };
+  phone: string;
   picture: {
     medium: string;
   };
@@ -23,11 +39,16 @@ type Person = {
 
 const App: React.FC = () => {
   const renderCount = useRef(0);
+  const [loadedPages, setLoadedPage] = useState(1);
   const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState<number>(20);
+  const [pageSize, setPageSize] = useState<number>(10);
   const [seed, setSeed] = useState<string>("abc");
   const [inputSearchValue, setInputSearchValue] = useState("");
   const [person, setPerson] = useState<Array<Person>>([]);
+
+  const [isPending, startTransition] = useTransition(); // trying out useTransition
+  const deferredSearchText = useDeferredValue(inputSearchValue);
+  const deferredSeedText = useDeferredValue(seed);
 
   const [sum, dispatch] = useReducer(
     (state: number, action: { type: string; payload: number }) => {
@@ -43,7 +64,7 @@ const App: React.FC = () => {
     page
   );
 
-  let url = `https://randomuser.me/api/?page=${page}&results=${pageSize}&seed=${seed}`;
+  let url = `https://randomuser.me/api/?page=${page}&results=${pageSize}&seed=${deferredSeedText}`;
 
   const getPerson = async () => {
     const { data } = await axios(url);
@@ -52,6 +73,10 @@ const App: React.FC = () => {
 
   const resetPerson = async () => {
     setPerson([]);
+    getPerson();
+    setPage(1);
+    setLoadedPage(1);
+    setInputSearchValue("");
   };
 
   useEffect(() => {
@@ -60,14 +85,16 @@ const App: React.FC = () => {
 
   useEffect(() => {
     resetPerson();
-    getPerson();
-    <RenderAllPersonComp />;
+    <RenderAllPerson person={person} page={page} pageSize={pageSize} />;
     console.log("Changed seed");
   }, [seed]);
 
   useEffect(() => {
-    getPerson();
-    <RenderAllPersonComp />;
+    if (page > loadedPages) {
+      setLoadedPage(page);
+      getPerson();
+    }
+    <RenderAllPerson person={person} page={page} pageSize={pageSize} />;
     console.log(url);
     console.log("Changed page");
   }, [page]);
@@ -85,55 +112,16 @@ const App: React.FC = () => {
     setPage(page + 1);
   };
 
-  const SearchPersonComp = () => {
-    if (person.length === 0) return <div>Loading...</div>;
-    return (
-      <>
-        {person
-          .filter(
-            (person: any) =>
-              person.name.first
-                .toLowerCase()
-                .includes(inputSearchValue.toLowerCase()) && inputSearchValue
-          )
-          .map((person: any, idx: number) => (
-            <Card
-              key={`search-${idx}`}
-              firstName={person.name.first}
-              lastName={person.name.last}
-              age={person.dob.age}
-              phone={person.phone}
-              picture={person.picture.medium}
-            />
-          ))}
-      </>
-    );
-  };
-
-  const RenderAllPersonComp = () => {
-    if (person.length === 0) return <div>Loading...</div>;
-    return (
-      <>
-        {person
-          .slice((page - 1) * pageSize, page * pageSize)
-          .map((person: any, idx: number) => (
-            <Card
-              key={`${idx}`}
-              firstName={person.name.first || ""}
-              lastName={person.name.last}
-              age={person.dob.age}
-              phone={person.phone}
-              picture={person.picture.medium}
-            />
-          ))}
-      </>
-    );
-  };
-
   const handlePageSizeChange = (
     e: React.ChangeEvent<HTMLTextAreaElement | HTMLInputElement>
   ) => {
     setPageSize(parseInt(e.target.value, 10));
+  };
+
+  const handlePageChange = (
+    e: React.ChangeEvent<HTMLTextAreaElement | HTMLInputElement>
+  ) => {
+    setPage(parseInt(e.target.value, 10));
   };
 
   return (
@@ -145,16 +133,16 @@ const App: React.FC = () => {
         <p className="mt-5">
           Randomuser API Testing + Learning Typescript / Pure React
         </p>
-        <h1>{sum}</h1>
+        {/* <h1>{sum}</h1>
         <button onClick={() => dispatch({ type: "PREV_PAGE", payload: 1 })}>
           Prev
         </button>
         <button onClick={() => dispatch({ type: "NEXT_PAGE", payload: 1 })}>
           Next
-        </button>
+        </button> */}
         <p className="underline text-cyan-500">{url}</p>
         <img src={logo} className="App-logo" alt="logo" />
-        <div className="block md:flex lg:flex my-5">
+        <div className="block md:flex lg:flex mb-5">
           <label>Results Per Page: </label>
           <input
             type="number"
@@ -163,7 +151,7 @@ const App: React.FC = () => {
             className="text-black text-center w-16 h-10 rounded-lg border-cyan-500 border-4 ml-5"
           />
         </div>
-        <div className="block md:flex lg:flex my-5">
+        <div className="block md:flex lg:flex mb-5">
           <label>Seed: </label>
           <input
             type="text"
@@ -172,34 +160,68 @@ const App: React.FC = () => {
             className="text-black text-center w-16 h-10 rounded-lg border-cyan-500 border-4 ml-5"
           />
         </div>
-        <div className="block md:flex lg:flex my-5">
+        <div className="block md:flex lg:flex mb-5">
           <label className="mx-5">Search Name: </label>
           <input
             type="text"
             value={inputSearchValue}
-            onChange={(e) => setInputSearchValue(e.target.value)}
+            onChange={(e) => {
+              startTransition(() => {
+                setInputSearchValue(e.target.value);
+              });
+            }}
             className="text-black text-center h-10 rounded-lg border-cyan-500 border-4 ml-5"
           />
           <div className="inline-block align-middle mt-5 md:mt-0">
-            <label className="mx-5">Page: {page}</label>
-            <button
-              className="bg-emerald-500 w-10 text-center rounded-lg mr-3 inline-block align-middle"
-              onClick={prevPage}
-            >
-              &lt;
-            </button>
-            <button
-              className="bg-emerald-500 w-10 text-center rounded-lg inline-block align-middle"
-              onClick={nextPage}
-            >
-              &gt;
-            </button>
+            <div className="inline-flex mr-3 md:ml-5">
+              <label className="mr-3">Page:</label>
+              <input
+                type="number"
+                value={page}
+                onChange={(e) => handlePageChange(e)}
+                className="text-black text-center w-16 h-10 rounded-lg border-cyan-500 border-4 ml-0"
+              />
+            </div>
+            <div className="inline-flex">
+              <button
+                className="bg-emerald-500 w-10 text-center rounded-lg mr-3 inline-block align-middle"
+                onClick={prevPage}
+              >
+                &lt;
+              </button>
+              <button
+                disabled={isPending}
+                className="bg-emerald-500 w-10 text-center rounded-lg inline-block align-middle"
+                onClick={() => {
+                  startTransition(() => {
+                    nextPage();
+                  });
+                }}
+              >
+                &gt;
+              </button>
+            </div>
           </div>
         </div>
 
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-4">
           {/* Checks inputSearchValue from search box, if empty, display all. But if has text, filter matches */}
-          {inputSearchValue ? <SearchPersonComp /> : <RenderAllPersonComp />}
+          <Suspense fallback={<Loading />}>
+            {inputSearchValue ? (
+              <SearchPerson
+                person={person}
+                page={page}
+                pageSize={pageSize}
+                inputSearchValue={deferredSearchText}
+              />
+            ) : (
+              <RenderAllPerson
+                person={person}
+                page={page}
+                pageSize={pageSize}
+              />
+            )}
+          </Suspense>
         </div>
         {/* <pre className="mt-20 text-left text-xs">
           {JSON.stringify(person, null, 2)}
