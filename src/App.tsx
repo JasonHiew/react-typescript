@@ -1,24 +1,25 @@
-import React, { useEffect, useState, useRef } from "react";
+import React, { useEffect, useState, useRef, useReducer } from "react";
 import logo from "./logo.svg";
 import "./App.css";
 import { Card } from "./components/Card";
 import axios from "axios";
+import { isArray } from "util";
 
-// type Person = {
-//   name: {
-//     title: string;
-//     first: string;
-//     last: string;
-//   };
-//   dob: {
-//     age: number;
-//     date: string;
-//   };
-//   // address?: {
-//   //   country?: string;
-//   //   city?: string;
-//   // };
-// };
+type Person = {
+  name: {
+    title: string;
+    first: string;
+    last: string;
+  };
+  dob: {
+    age: number;
+    date: string;
+  };
+  picture: {
+    medium: string;
+  };
+  age: number;
+};
 
 const App: React.FC = () => {
   const renderCount = useRef(0);
@@ -26,23 +27,21 @@ const App: React.FC = () => {
   const [pageSize, setPageSize] = useState<number>(20);
   const [seed, setSeed] = useState<string>("abc");
   const [inputSearchValue, setInputSearchValue] = useState("");
-  const [person, setPerson] = useState<
-    Array<{
-      name: {
-        title: "";
-        first: "";
-        last: "";
-      };
-      dob: {
-        age: 0;
-        date: "";
-      };
-      picture: {
-        medium: "";
-      };
-      age: 0;
-    }>
-  >([]);
+  const [person, setPerson] = useState<Array<Person>>([]);
+
+  const [sum, dispatch] = useReducer(
+    (state: number, action: { type: string; payload: number }) => {
+      switch (action.type) {
+        case "PREV_PAGE":
+          return state - action.payload;
+        case "NEXT_PAGE":
+          return state + action.payload;
+        default:
+          return state - action.payload;
+      }
+    },
+    page
+  );
 
   let url = `https://randomuser.me/api/?page=${page}&results=${pageSize}&seed=${seed}`;
 
@@ -58,9 +57,9 @@ const App: React.FC = () => {
   useEffect(() => {
     getPerson();
   }, []);
-  
+
   useEffect(() => {
-    resetPerson(); 
+    resetPerson();
     getPerson();
     <RenderAllPersonComp />;
     console.log("Changed seed");
@@ -72,7 +71,6 @@ const App: React.FC = () => {
     console.log(url);
     console.log("Changed page");
   }, [page]);
-
 
   useEffect(() => {
     renderCount.current += 1;
@@ -88,7 +86,7 @@ const App: React.FC = () => {
   };
 
   const SearchPersonComp = () => {
-    if(person.length === 0) return <div>Loading...</div>;
+    if (person.length === 0) return <div>Loading...</div>;
     return (
       <>
         {person
@@ -113,7 +111,7 @@ const App: React.FC = () => {
   };
 
   const RenderAllPersonComp = () => {
-    if(person.length === 0) return <div>Loading...</div>;
+    if (person.length === 0) return <div>Loading...</div>;
     return (
       <>
         {person
@@ -147,6 +145,13 @@ const App: React.FC = () => {
         <p className="mt-5">
           Randomuser API Testing + Learning Typescript / Pure React
         </p>
+        <h1>{sum}</h1>
+        <button onClick={() => dispatch({ type: "PREV_PAGE", payload: 1 })}>
+          Prev
+        </button>
+        <button onClick={() => dispatch({ type: "NEXT_PAGE", payload: 1 })}>
+          Next
+        </button>
         <p className="underline text-cyan-500">{url}</p>
         <img src={logo} className="App-logo" alt="logo" />
         <div className="block md:flex lg:flex my-5">
@@ -178,13 +183,13 @@ const App: React.FC = () => {
           <div className="inline-block align-middle mt-5 md:mt-0">
             <label className="mx-5">Page: {page}</label>
             <button
-              className="bg-emerald-500 w-10 text-center rounded-full mr-3 inline-block align-middle"
+              className="bg-emerald-500 w-10 text-center rounded-lg mr-3 inline-block align-middle"
               onClick={prevPage}
             >
               &lt;
             </button>
             <button
-              className="bg-emerald-500 w-10 text-center rounded-full inline-block align-middle"
+              className="bg-emerald-500 w-10 text-center rounded-lg inline-block align-middle"
               onClick={nextPage}
             >
               &gt;
