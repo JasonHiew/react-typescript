@@ -9,7 +9,7 @@ import React, {
 } from "react";
 import logo from "./logo.svg";
 import "./App.css";
-import { Card } from "./components/Card";
+// import { Card } from "./components/Card";
 import { Loading } from "./components/Loading";
 import axios from "axios";
 // import SearchPerson from "./components/SearchPerson";
@@ -45,12 +45,18 @@ const App: React.FC = () => {
   const [seed, setSeed] = useState<string>("abc");
   const [inputSearchValue, setInputSearchValue] = useState("");
   const [person, setPerson] = useState<Array<Person>>([]);
+  const [loading, setLoading] = useState(true);
+  const [initialLoad, setInitialLoad] = useState(true);
+  const [compact, setCompact] = useState(false);
 
   const [isPending, startTransition] = useTransition(); // trying out useTransition
   const deferredSearchText = useDeferredValue(inputSearchValue);
+  const deferredPageText = useDeferredValue(page);
   const deferredSeedText = useDeferredValue(seed);
+  const deferredPageSizeText = useDeferredValue(pageSize);
 
   const [sum, dispatch] = useReducer(
+    // trying out useReducer
     (state: number, action: { type: string; payload: number }) => {
       switch (action.type) {
         case "PREV_PAGE":
@@ -67,8 +73,10 @@ const App: React.FC = () => {
   let url = `https://randomuser.me/api/?page=${page}&results=${pageSize}&seed=${deferredSeedText}`;
 
   const getPerson = async () => {
+    setLoading(true);
     const { data } = await axios(url);
     setPerson([...person, ...data.results]);
+    setLoading(false);
   };
 
   const resetPerson = async () => {
@@ -81,21 +89,44 @@ const App: React.FC = () => {
 
   useEffect(() => {
     getPerson();
+    setTimeout(() => {
+      setInitialLoad(false);
+    }, 2000);
   }, []);
 
   useEffect(() => {
     resetPerson();
-    <RenderAllPerson person={person} page={page} pageSize={pageSize} />;
+    <RenderAllPerson
+      person={person}
+      page={page}
+      pageSize={pageSize}
+      compact={compact}
+    />;
     console.log("Changed seed");
-  }, [seed]);
+  }, [deferredSeedText]);
+
+  useEffect(() => {
+    resetPerson();
+    <RenderAllPerson
+      person={person}
+      page={page}
+      pageSize={pageSize}
+      compact={compact}
+    />;
+    console.log("Changed page size");
+  }, [deferredPageSizeText]);
 
   useEffect(() => {
     if (page > loadedPages) {
       setLoadedPage(page);
       getPerson();
     }
-    <RenderAllPerson person={person} page={page} pageSize={pageSize} />;
-    console.log(url);
+    <RenderAllPerson
+      person={person}
+      page={page}
+      pageSize={pageSize}
+      compact={compact}
+    />;
     console.log("Changed page");
   }, [page]);
 
@@ -130,47 +161,62 @@ const App: React.FC = () => {
         Render Count: {renderCount.current}
       </p>
       <header className="App-header">
-        <p className="mt-5">
-          Randomuser API Testing + Learning Typescript / Pure React
-        </p>
-        {/* <h1>{sum}</h1>
-        <button onClick={() => dispatch({ type: "PREV_PAGE", payload: 1 })}>
-          Prev
-        </button>
-        <button onClick={() => dispatch({ type: "NEXT_PAGE", payload: 1 })}>
-          Next
-        </button> */}
-        <p className="underline text-cyan-500">{url}</p>
-        <img src={logo} className="App-logo" alt="logo" />
-        <div className="block md:flex lg:flex mb-5">
-          <label>Results Per Page: </label>
-          <input
-            type="number"
-            value={pageSize}
-            onChange={(e) => handlePageSizeChange(e)}
-            className="text-black text-center w-16 h-10 rounded-lg border-cyan-500 border-4 ml-5"
-          />
+        <div className="text-5xl font-extrabold px-12 mb-3">
+          <span className="bg-clip-text text-transparent bg-gradient-to-r from-pink-500 to-violet-500">
+            Randomuser API Testing + Typescript + Tailwind CSS + React <span className="inline-flex align-middle"><img src={logo} className="App-logo h-5" alt="logo" /></span>
+          </span>
         </div>
-        <div className="block md:flex lg:flex mb-5">
-          <label>Seed: </label>
-          <input
-            type="text"
-            value={seed}
-            onChange={(e) => setSeed(e.target.value)}
-            className="text-black text-center w-16 h-10 rounded-lg border-cyan-500 border-4 ml-5"
-          />
+      </header>
+      <div className="App-body">
+        <a className="underline text-cyan-500" href={url}>
+          {url}
+        </a>
+        <div className="flex mt-5">
+          <div className="block md:flex lg:flex mb-5">
+            <label>Results Per Page: </label>
+            <input
+              type="number"
+              value={pageSize}
+              min="1"
+              onChange={(e) => handlePageSizeChange(e)}
+              className="text-black text-center w-16 h-10 rounded-lg border-cyan-500 border-4 ml-5"
+              disabled={initialLoad ? true : false}
+            />
+          </div>
+          <div className="block md:flex lg:flex mb-5 ml-5">
+            <label>Seed: </label>
+            <input
+              type="text"
+              value={seed}
+              onChange={(e) => setSeed(e.target.value)}
+              className="text-black text-center w-16 h-10 rounded-lg border-cyan-500 border-4 ml-5"
+              disabled={initialLoad ? true : false}
+            />
+          </div>
+          <label className="flex items-center select-none cursor-pointer mb-5 ml-5">
+            <div className="relative">
+              <input
+                type="checkbox"
+                className="sr-only"
+                onChange={(e) => {
+                  setCompact(e.target.checked);
+                }}
+                disabled={initialLoad ? true : false}
+              />
+              <div className="w-10 h-4 bg-gray-400 rounded-full shadow-inner"></div>
+              <div className="dot absolute w-6 h-6 bg-white rounded-full shadow -left-1 -top-1 transition"></div>
+            </div>
+            <div className="ml-3">Compact View</div>
+          </label>
         </div>
         <div className="block md:flex lg:flex mb-5">
           <label className="mx-5">Search Name: </label>
           <input
             type="text"
             value={inputSearchValue}
-            onChange={(e) => {
-              startTransition(() => {
-                setInputSearchValue(e.target.value);
-              });
-            }}
+            onChange={(e) => setInputSearchValue(e.target.value)}
             className="text-black text-center h-10 rounded-lg border-cyan-500 border-4 ml-5"
+            disabled={initialLoad ? true : false}
           />
           <div className="inline-block align-middle mt-5 md:mt-0">
             <div className="inline-flex mr-3 md:ml-5">
@@ -178,55 +224,70 @@ const App: React.FC = () => {
               <input
                 type="number"
                 value={page}
+                min="1"
+                max={loadedPages}
                 onChange={(e) => handlePageChange(e)}
                 className="text-black text-center w-16 h-10 rounded-lg border-cyan-500 border-4 ml-0"
+                disabled={initialLoad ? true : loading}
               />
             </div>
             <div className="inline-flex">
               <button
-                className="bg-emerald-500 w-10 text-center rounded-lg mr-3 inline-block align-middle"
+                className="bg-emerald-500 w-10 text-center rounded-lg mr-3 inline-block align-middle disabled:opacity-75"
                 onClick={prevPage}
+                disabled={initialLoad ? true : loading}
               >
                 &lt;
               </button>
               <button
-                disabled={isPending}
-                className="bg-emerald-500 w-10 text-center rounded-lg inline-block align-middle"
-                onClick={() => {
-                  startTransition(() => {
-                    nextPage();
-                  });
-                }}
+                className="bg-emerald-500 w-10 text-center rounded-lg inline-block align-middle disabled:opacity-75"
+                onClick={nextPage}
+                disabled={initialLoad ? true : loading}
               >
                 &gt;
               </button>
             </div>
           </div>
         </div>
-
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-4">
-          {/* Checks inputSearchValue from search box, if empty, display all. But if has text, filter matches */}
-          <Suspense fallback={<Loading />}>
-            {inputSearchValue ? (
-              <SearchPerson
-                person={person}
-                page={page}
-                pageSize={pageSize}
-                inputSearchValue={deferredSearchText}
-              />
-            ) : (
-              <RenderAllPerson
-                person={person}
-                page={page}
-                pageSize={pageSize}
-              />
-            )}
-          </Suspense>
+          {initialLoad ? (
+            <Loading />
+          ) : (
+            <>
+              {/* Checks inputSearchValue from search box, if empty, display all. But if has text, filter matches */}
+
+              {loading ? (
+                <Loading />
+              ) : deferredSearchText ? (
+                <SearchPerson
+                  person={person}
+                  page={page}
+                  pageSize={pageSize}
+                  inputSearchValue={deferredSearchText}
+                  compact={compact}
+                />
+              ) : (
+                <RenderAllPerson
+                  person={person}
+                  page={page}
+                  pageSize={pageSize}
+                  compact={compact}
+                />
+              )}
+            </>
+          )}
         </div>
+        {/* <h1>{sum}</h1>
+        <button onClick={() => dispatch({ type: "PREV_PAGE", payload: 1 })}>
+          Prev
+        </button>
+        <button onClick={() => dispatch({ type: "NEXT_PAGE", payload: 1 })}>
+          Next
+        </button> */}
         {/* <pre className="mt-20 text-left text-xs">
           {JSON.stringify(person, null, 2)}
         </pre> */}
-      </header>
+      </div>
     </div>
   );
 };

@@ -18,6 +18,7 @@ interface Props {
   page: number;
   pageSize: number;
   inputSearchValue: string;
+  compact: boolean;
 }
 
 export const SearchPerson: React.FC<Props> = (props) => {
@@ -38,6 +39,7 @@ export const SearchPerson: React.FC<Props> = (props) => {
             age={person.dob.age}
             phone={person.phone}
             picture={person.picture.medium}
+            compact={props.compact}
           />
         ))}
     </>

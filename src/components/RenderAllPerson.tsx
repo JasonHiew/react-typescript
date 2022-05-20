@@ -17,6 +17,7 @@ interface Props {
   }[];
   page: number;
   pageSize: number;
+  compact: boolean;
 }
 
 export const RenderAllPerson: React.FC<Props> = (props) => {
@@ -32,6 +33,7 @@ export const RenderAllPerson: React.FC<Props> = (props) => {
             age={person.dob.age}
             phone={person.phone}
             picture={person.picture.medium}
+            compact={props.compact}
           />
         ))}
     </>
